@@ -72,7 +72,7 @@ def run(column: np.ndarray, labels: np.ndarray, true_labels: np.ndarray, steps: 
 
     :param column: Array of encoded column characters
     :param labels: Array of initial binary labels
-    :param true_labels: Original labels needed to score labels
+    :param true_labels: Original labels needed to score optimized labels
     :param steps: A sequence of pairs (`prob`, `step`) where `step` is a step function
     (taking an array of labels and outputing an array of labels),
     and a `prob` is a probability to choose this step.
@@ -106,6 +106,9 @@ def run(column: np.ndarray, labels: np.ndarray, true_labels: np.ndarray, steps: 
 
     # run the simulation
     for n in range(1, n_steps + 1):
+        if output_freq and n % output_freq == 0:  # conditionally expose the current state
+            print(fmt_output(n, de_current, column_score_(current), current),
+                  sep='\n', file=output_buffer)
         step = choices(steps, weights=p_step)[0]  # randomly choose a step type
         proposal = step(current)  # generate a proposal
         de_current, de_proposal = de_score_(current), de_score_(proposal)  # calculate the scores
@@ -116,9 +119,6 @@ def run(column: np.ndarray, labels: np.ndarray, true_labels: np.ndarray, steps: 
             current, de_current = proposal, de_proposal
             if de_current > best[1]:
                 best = n, de_current, column_score_(current), current
-        if output_freq and n % output_freq == 0:  # conditionally expose the current state
-            print(fmt_output(n, round(de_current, 4), column_score_(current), current),
-                  sep='\n', file=output_buffer)
     return best
 
 
