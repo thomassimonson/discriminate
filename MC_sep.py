@@ -61,7 +61,8 @@ def cli(inp, use_init, n_steps, classes, min_members, temp, prob_mut, prob_flp, 
                   min_members, output_frequency, output_buffer)
 
     # handle the results
-    print(fmt_output(*results))
+    col_score = column_score(results[-1], true_labels, column, (1, np.log(21)), classes)
+    print(fmt_output(*results, col_score))
 
 
 def run(column: np.ndarray, labels: np.ndarray, true_labels: np.ndarray, steps: Steps, n_steps: int,
@@ -98,31 +99,31 @@ def run(column: np.ndarray, labels: np.ndarray, true_labels: np.ndarray, steps: 
     steps = [s[1] for s in steps]
 
     # setup initial state
-    de_current = de_score_(labels)
+    current = labels.copy()
+    de_current = de_score_(current)
     if de_current is None:
         raise ValueError('Initial labels yielded "None" dE score; the algorithm will not converge')
-    best = 1, de_current, column_score_(labels), labels
-    current = labels.copy()
+    best = 1, de_current, current
 
     # run the simulation
     for n in range(1, n_steps + 1):
         if output_freq and n % output_freq == 0:  # conditionally expose the current state
-            print(fmt_output(n, de_current, column_score_(current), current),
+            print(fmt_output(n, de_current, current, column_score_(current)),
                   sep='\n', file=output_buffer)
         step = choices(steps, weights=p_step)[0]  # randomly choose a step type
         proposal = step(current)  # generate a proposal
-        de_current, de_proposal = de_score_(current), de_score_(proposal)  # calculate the scores
+        de_proposal = de_score_(proposal)  # calculate the score
         if de_proposal is None:  # if de_score is None skip the step
             continue
         p_accept = np.exp(-temp * (de_current - de_proposal))  # calculate acceptance probabiliy
         if np.random.rand() < p_accept:  # accept or reject?
             current, de_current = proposal, de_proposal
             if de_current > best[1]:
-                best = n, de_current, column_score_(current), current
+                best = n, de_current, current
     return best
 
 
-def fmt_output(step: int, de_score_: float, col_score_: float, labels: np.ndarray) -> str:
+def fmt_output(step: int, de_score_: float, labels: np.ndarray, col_score_: float) -> str:
     header = f">{step}|{round(de_score_, 4)}|{round(col_score_, 4)}"
     labels = " ".join(map(str, labels))
     return f"{header}\n{labels}"
